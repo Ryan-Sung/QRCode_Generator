@@ -48,28 +48,7 @@ for i in range(7):
         used.append((i, M-7+j))
         used.append((N-7+i, j))
 
-# print("FINDER", len(used))
-
 # Step 2: Add the Separators
-'''
-for t in range(8):
-    # horizontal
-    pixels[t, 7] = color[0]
-    pixels[N-t-1, 7] = color[0]
-    pixels[t, M-7-1] = color[0]
-    
-    # vertical
-    pixels[7, t] = color[0]
-    pixels[7, M-t-1] = color[0]
-    pixels[N-7-1, t] = color[0]
-    
-    used.append((t, 7))
-    used.append((N-t-1, 7))
-    used.append((t, M-7-1))
-    used.append((7, t))
-    used.append((7, M-t-1))
-    used.append((N-7-1, t))
- '''   
 for t in range(8):
     # horizontal
     pixels[t, 7] = color[0]
@@ -92,8 +71,6 @@ for t in range(7):
     used.append((7, M-t-1))
     used.append((N-7-1, t))
     
-
-
 
 # Step 3: Add the Alignment Patterns
 ALIGNMENT = [ [1, 1, 1, 1, 1],
@@ -129,8 +106,6 @@ format_pos = [ [(8, M-1), (8, M-2), (8, M-3), (8, M-4), (8, M-5), (8, M-6), (8, 
 format_clr = [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0]
 
 for t in range(15):
-    # pixels[format_pos[0][t]] = (0, 0, 255)
-    # pixels[format_pos[1][t]] = (0, 0, 255)
     pixels[format_pos[0][t]] = color[format_clr[t]]
     pixels[format_pos[1][t]] = color[format_clr[t]]
     
@@ -138,13 +113,18 @@ for t in range(15):
     used.append(format_pos[1][t])
 
 def fill(data):
+    # 分兩塊做
+    # 直到 vertical timing pattern 前一塊
+    # 其後一塊
+    
     data += '0' * 100 # for not used area
     
     idx = 0
-    dy = -1
     
+    # 第一塊
     a = (N-1, M-1)
     b = (N-2, M-1)
+    dy = -1
     
     while 1:
         if a not in used:
@@ -171,6 +151,7 @@ def fill(data):
             dy = -1
             
         
+    # 第二塊
     a = (5, 9)
     b = (4, 9)
     dy = 1
@@ -186,7 +167,6 @@ def fill(data):
         
         a = (a[0], a[1] + dy)
         b = (b[0], b[1] + dy)
-        
         
         if a == (0, N-8) or b == (0, N-8):
             break
@@ -214,6 +194,3 @@ def mask():
 def show():
     img.save('qrcode.jpg')
     img.show()
-
-pixels[7, 9] = (0, 100, 100)
-# show()
