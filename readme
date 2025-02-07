@@ -1,0 +1,11 @@
+making QRCode 5-L
+with byte mode
+Mode indicator : 0100
+
+padding 也算在 encoded 裡面進去 RScode
+
+use mask 0
+
+
+usage : main.py + [INPUT]
+INPUT 暫時不支援空格字元
