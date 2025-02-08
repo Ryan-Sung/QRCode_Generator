@@ -11,23 +11,24 @@ Next: Data Masking
 '''
 
 from PIL import Image
-
+import copy
 
 # INIT ------
 
 N, M = 37, 37
-img = Image.new(mode='RGB', size=(N, M))
-pixels = img.load()
 
-color = [(255, 255, 255), (0, 0, 0)] # color[0] = white, color[1] = black
+WHITE, BLACK, NULL = 0, 1, 2
+arr = [[NULL for j in range(M)] for i in range(N)]
+color = [(255, 255, 255), (0, 0, 0), (125, 125, 125)] # color[0] = white, color[1] = black, color[2] = gray
 used = []
 
 for i in range(N):
     for j in range(M):
-        pixels[i, j] = (125, 125, 125)
+        arr[i][j] = NULL
 
 
 # -----
+# base graph area
 
 # Step 1: Add the Finder Patterns
 FINDER = [ [1, 1, 1, 1, 1, 1, 1],
@@ -40,9 +41,9 @@ FINDER = [ [1, 1, 1, 1, 1, 1, 1],
 
 for i in range(7):
     for j in range(7):
-        pixels[i, j] = color[FINDER[i][j]]
-        pixels[i, M-7+j] = color[FINDER[i][j]]
-        pixels[N-7+i, j] = color[FINDER[i][j]]
+        arr[i][j] = FINDER[i][j]
+        arr[i][M-7+j] = FINDER[i][j]
+        arr[N-7+i][j] = FINDER[i][j]
         
         used.append((i, j))
         used.append((i, M-7+j))
@@ -51,10 +52,9 @@ for i in range(7):
 # Step 2: Add the Separators
 for t in range(8):
     # horizontal
-    pixels[t, 7] = color[0]
-    pixels[N-t-1, 7] = color[0]
-    pixels[t, M-7-1] = color[0]
-    
+    arr[t][7] = WHITE
+    arr[N-t-1][7] = WHITE
+    arr[t][M-7-1] = WHITE
     
     used.append((t, 7))
     used.append((N-t-1, 7))
@@ -63,9 +63,9 @@ for t in range(8):
 # 會重複一格，所以這裡是 7
 for t in range(7):
     # vertical
-    pixels[7, t] = color[0]
-    pixels[7, M-t-1] = color[0]
-    pixels[N-7-1, t] = color[0]
+    arr[7][t] = WHITE
+    arr[7][M-t-1] = WHITE
+    arr[N-7-1][t] = WHITE
     
     used.append((7, t))
     used.append((7, M-t-1))
@@ -81,7 +81,7 @@ ALIGNMENT = [ [1, 1, 1, 1, 1],
 
 for i in range(5):
     for j in range(5):
-        pixels[i+28, j+28] = color[ALIGNMENT[i][j]]
+        arr[i+28][j+28] = ALIGNMENT[i][j]
         
         used.append((i+28, j+28))
 
@@ -89,29 +89,28 @@ for i in range(5):
 
 # Step 4: Add the Timing Patterns
 for t in range(8, N-9+1):
-    pixels[6, t] = color[~t&1]
-    pixels[t, 6] = color[~t&1]
+    arr[6][t] = ~t&1
+    arr[t][6] = ~t&1
     
     used.append((6, t))
     used.append((t, 6))
 
 
 # Step 5: Add the Dark Module and Reserved Areas
-pixels[8, M-8] = color[1]
+arr[8][M-8] = 1
 used.append((8, M-8))
 
 # pixel[8, 8] 讓直的去放
 format_pos = [ [(8, M-1), (8, M-2), (8, M-3), (8, M-4), (8, M-5), (8, M-6), (8, M-7), (8, 8), (8, 7), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (8, 0)],
                [(0, 8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (7, 8), (N-8, 8), (N-7, 8), (N-6, 8), (N-5, 8), (N-4, 8), (N-3, 8), (N-2, 8), (N-1, 8)] ]
-format_clr = [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0]
 
 for t in range(15):
-    pixels[format_pos[0][t]] = color[format_clr[t]]
-    pixels[format_pos[1][t]] = color[format_clr[t]]
-    
     used.append(format_pos[0][t])
     used.append(format_pos[1][t])
-
+    
+# ---------
+# function area    
+    
 def fill(data):
     # 分兩塊做
     # 直到 vertical timing pattern 前一塊
@@ -128,10 +127,10 @@ def fill(data):
     
     while 1:
         if a not in used:
-            pixels[a] = color[int(data[idx])]
+            arr[a[0]][a[1]] = int(data[idx])
             idx+=1
         if b not in used:
-            pixels[b] = color[int(data[idx])]
+            arr[b[0]][b[1]] = int(data[idx])
             idx+=1
         
         a = (a[0], a[1] + dy)
@@ -159,10 +158,10 @@ def fill(data):
     while 1:
         print(a, b)
         if a not in used:
-            pixels[a] = color[int(data[idx])]
+            arr[a[0]][a[1]] = int(data[idx])
             idx+=1
         if b not in used:
-            pixels[b] = color[int(data[idx])]
+            arr[b[0]][b[1]] = int(data[idx])
             idx+=1
         
         a = (a[0], a[1] + dy)
@@ -180,17 +179,61 @@ def fill(data):
             a = (a[0]-2, M-1)
             b = (b[0]-2, M-1)
             dy = -1
+        
+def mask_n_format_n_finish():
+    import eval # eval.py
+    
+    condition = [lambda x, y : (x+y)%2 == 0,
+                 lambda x, y : y%2 == 0,
+                 lambda x, y : x%3 == 0,
+                 lambda x, y : (x+y)%3 == 0,
+                 lambda x, y : (int(y/2) + int(x/3))%2 == 0,
+                 lambda x, y : ( (x*y)%2 + (x*y)%3 ) == 0,
+                 lambda x, y : ( (x*y)%2 + (x*y)%3 )%2 == 0,
+                 lambda x, y : ( (x+y)%2 + (x*y)%3 )%2 == 0
+                 ]
+    
+    format_pos = [ [(8, M-1), (8, M-2), (8, M-3), (8, M-4), (8, M-5), (8, M-6), (8, M-7), (8, 8), (8, 7), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (8, 0)],
+                   [(0, 8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (7, 8), (N-8, 8), (N-7, 8), (N-6, 8), (N-5, 8), (N-4, 8), (N-3, 8), (N-2, 8), (N-1, 8)] ]
+
+    format_clr = [ [1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0],
+                   [1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1],
+                   [1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0],
+                   [1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1],
+                   [1, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1],
+                   [1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0],
+                   [1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1],
+                   [1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0] ]
+    
+    score = [eval.evaluate(copy.deepcopy(arr), used, condition[i]) for i in range(8)]
+    print(score)
+    
+    tar = 0
+    for i in range(8):
+        if score[i] < score[tar]:
+            tar = i
             
-            
-def mask():
-    # use mask 0
-    # if (row + column) mod 2 == 0 -> change
+    # tar = 0
+    for t in range(15):
+        arr[ format_pos[0][t][0] ][ format_pos[0][t][1] ] = format_clr[tar][t]
+        arr[ format_pos[1][t][0] ][ format_pos[1][t][1] ] = format_clr[tar][t]
+   
+
+    print("TAR :", tar)
     for i in range(N):
         for j in range(M):
-            if  (i, j) not in used and (i+j) % 2 == 0:
-                x = pixels[i, j][0]
-                pixels[i, j] = (255-x, 255-x, 255-x)
+            if  (i, j) not in used and condition[tar](i, j):
+                arr[i][j] = 1 - arr[i][j]
+                
+def show_n_save(width):
+    img = Image.new(mode='RGB', size=(N*width, M*width))
+    pixels = img.load()
 
-def show():
+    for i in range(N):
+        for j in range(M):
+            for x in range(width):
+                for y in range(width):
+                    pixels[i*width+x, j*width+y] = (255, 255, 255) if arr[i][j] == 0 else (0, 0, 0)
+                    
     img.save('qrcode.jpg')
     img.show()
